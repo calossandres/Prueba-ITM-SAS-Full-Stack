@@ -2,39 +2,38 @@
 
 [Español](README.md) | **English**
 
-Full Stack Junior technical assessment: a web application for registering and tracking internal technology support requests.
+A web application for registering, organizing, and tracking technology support requests.
 
-## Technology stack
+## Features
 
-- Next.js App Router, React, TypeScript, and Tailwind CSS for the frontend.
-- NestJS and DTOs with class-validator for the REST API.
-- Supabase PostgreSQL, accessed from NestJS through `@supabase/supabase-js`.
-- A SQL RPC function for transactions, row locking, and consistent change history.
-- Node Test Runner, Supertest, and PGlite for tests without real credentials or production data.
+- Create and edit open requests.
+- Search, filter by status, priority and category, sort, and paginate.
+- Change history with actor, timestamp, and observations.
+- Problem image at creation and solution evidence at resolution.
+- Responsive interface for desktop, tablet, and mobile.
 
-This stack matches the candidate's experience. The assessment allows a choice of technologies; Vue and Express are recommendations rather than requirements.
+```text
+Pendiente → En progreso → Resuelta
+Pendiente → Cancelada
+```
 
-## Prerequisites
+These API values mean Pending, In progress, Resolved, and Cancelled. The interface and API values are in Spanish. Resolved and cancelled requests remain available for reference. Critical requests require an observation to resolve. Saved images cannot be replaced or deleted.
 
-- Node.js 24 and npm.
-- A Supabase project dedicated to this assessment.
-- Git.
+## Stack
+
+Next.js, React, TypeScript, and Tailwind CSS; a NestJS REST API; Supabase PostgreSQL and Storage. A transactional SQL function saves operations and their history together.
 
 ## Installation
 
-```powershell
-git clone https://github.com/calossandres/Prueba-ITM-SAS-Full-Stack-Junior.git
-cd "Prueba-ITM-SAS-Full-Stack-Junior"
-git switch develop
+Requirements: Node.js 24, npm, and a Supabase project.
+
+Clone this repository and run from its directory:
+
+```sh
 npm ci
-Copy-Item .env.example .env.local
 ```
 
-If `.env.local` already exists, edit it instead of overwriting it with the template. The copy command above uses PowerShell; on macOS/Linux, use `cp .env.example .env.local`.
-
-## Environment variables
-
-Create `.env.local` at the repository root, next to the root `package.json`:
+Create `.env.local` at the repository root:
 
 ```dotenv
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
@@ -43,140 +42,48 @@ PORT=3001
 FRONTEND_ORIGIN=http://localhost:3000
 ```
 
-| Variable | Where to find it | Purpose |
-|---|---|---|
-| SUPABASE_URL | Supabase > Settings > Data API > Project URL | Project address |
-| SUPABASE_SECRET_KEY | Supabase > Settings > API Keys > Secret keys | Server access exclusively from NestJS |
-| PORT | Local configuration: 3001 | API port |
-| FRONTEND_ORIGIN | Local configuration: http://localhost:3000 | Allowed CORS origin |
+Find the URL under Supabase → Settings → Data API and the key under Settings → API Keys → Secret keys. The secret key is used exclusively by the backend.
 
-Never prefix the secret key with `NEXT_PUBLIC_`. The frontend calls NestJS and does not need Supabase keys. A publishable key cannot replace the secret key for these operations. Neither `DATABASE_URL` nor the PostgreSQL password is required.
+Run the scripts in [supabase/migrations](supabase/migrations) through the SQL Editor, from `001` to `006` in order.
 
-`.env.local` and its variants are ignored by Git. `.env.example` contains placeholders only. To change the API destination in another environment, set `API_URL` in the Next.js environment before building; the local default is `http://127.0.0.1:3001`.
-
-## Supabase setup
-
-Run these scripts in order in your assessment project's SQL Editor:
-
-1. `supabase/migrations/001_initial.sql`: tables, indexes, and Row Level Security (RLS).
-2. `supabase/migrations/002_supabase_rpc.sql`: transactional function and execution permissions.
-3. `supabase/migrations/003_request_images.sql`: image references and audited updates.
-4. `supabase/migrations/004_image_storage.sql`: private image bucket.
-5. `supabase/migrations/005_atomic_creation_image.sql`: one creation event when registering a request with an image.
-6. `supabase/migrations/006_problem_and_solution_images.sql`: immutable problem image and separate evidence of resolution.
-
-If `support_requests` and `request_history` already exist with this application's schema, run the pending migrations in order. Switching to the Supabase client does not require deleting tables or data.
-
-Run these migrations through the SQL Editor with administrative privileges. Only `service_role` can execute the `support_api` function; anonymous access is not enabled. The secret key stays in the backend.
-
-## Running the application
-
-From the repository root:
-
-```powershell
+```sh
 npm run dev
 ```
 
-- Application: http://localhost:3000
-- Health check: http://localhost:3001/api/health
-- Request list API: http://localhost:3001/api/requests
-
-The health check should return `{"status":"ok","database":"Supabase PostgreSQL"}`. It calls the RPC function and verifies access to both tables.
-
-Alternatively, start each workspace in a separate terminal:
-
-```powershell
-npm run dev -w backend
-npm run dev -w frontend
-```
-
-Use only one startup approach at a time. Running the combined command while a backend is already listening on the same port causes `EADDRINUSE`.
+- Application: [localhost:3000](http://localhost:3000).
+- API: [localhost:3001/api/requests](http://localhost:3001/api/requests).
+- Health: [localhost:3001/api/health](http://localhost:3001/api/health).
 
 ## Verification
 
-```powershell
+```sh
 npm test
 npm run typecheck
 npm run build
 ```
 
-Tests use embedded PostgreSQL and a local HTTP server to check the Supabase client. They do not load `.env.local`, require real keys, or modify your Supabase project.
+Tests use embedded PostgreSQL and mocked services; Supabase credentials are not required.
 
-To run the production build locally, first run `npm run build`, then:
+## Deployment
 
-```powershell
-npm start -w backend
-npm start -w frontend
-```
+Deploy the monorepo as two Vercel projects:
 
-Run these commands in two separate terminals and stop development servers first. See the Vercel guide to publish both projects.
+| Project | Directory | Variables |
+|---|---|---|
+| NestJS API | `backend` | `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `FRONTEND_ORIGIN` |
+| Next.js application | `frontend` | `API_URL` |
 
-## Features and business rules
+Set `API_URL` to the backend HTTPS origin, without `/api`. See the [deployment guide](docs/VERCEL.md).
 
-- Create requests with a title, description, requester, category, and priority. Initial status: `Pendiente` (Pending).
-- View request lists and details; edit open requests.
-- Search titles, descriptions, and requesters without case sensitivity.
-- Filter by status, priority, and category; sort and paginate results.
-- Record creation, edits, and status changes with an actor, timestamp, and observation.
-- Cancel pending requests while preserving history. Cancellation was chosen instead of physical deletion, as allowed by the assessment.
+## Documentation
 
-Allowed transitions, using the actual Spanish values accepted by the API:
+Detailed guides are in Spanish:
 
-```text
-Pendiente -> En progreso -> Resuelta
-Pendiente -> Cancelada
-```
+- [Architecture](docs/ARQUITECTURA.md)
+- [REST API](docs/API.md)
+- [Images](docs/IMAGENES.md)
+- [Manual verification](docs/VERIFICACION.md)
 
-| API value | English meaning |
-|---|---|
-| Pendiente | Pending |
-| En progreso | In progress |
-| Resuelta | Resolved |
-| Cancelada | Cancelled |
+## Access
 
-`Resuelta` and `Cancelada` are final states. Resolving a request with priority `Crítica` (Critical) requires a nonempty observation. General request edits cannot change status.
-
-The interface and API enum values remain in Spanish; this English README does not change the application language or accepted payloads.
-
-## Project structure and documentation
-
-```text
-backend/src/              Controllers, DTOs, service, and Supabase client
-backend/test/             API, SQL, and SDK HTTP transport tests
-frontend/app/             Interface, layout, and styles
-supabase/migrations/      Schema and RPC function
-docs/                     Explanations, API reference, and manual checks
-.github/workflows/        Automated verification in GitHub
-```
-
-The detailed guides below are written in Spanish:
-
-- [Architecture and technical decisions](docs/ARQUITECTURA.md)
-- [REST API reference](docs/API.md)
-- [Manual verification and delivery](docs/VERIFICACION.md)
-
-## Git workflow and delivery
-
-Development takes place on `develop`. The assessment requires `main`, `develop`, at least five commits, and an integration from develop into main. Group commits by meaningful changes and verify the application before merging.
-
-Using GitHub Desktop: commit on develop, Push origin, stop the servers before switching to main, choose Branch > Merge into current branch > develop, confirm, and Push origin. Check that both branches are available on GitHub and that the repository is public.
-
-Do not upload `node_modules` or generated `.next` and `dist` files. Switching to an older branch without `.gitignore` may make these files appear as untracked. Do not commit them or use Discard all changes as a workaround.
-
-## Scope and limitations
-
-User sign-in is not implemented because the assessment does not require it. The actor's name is supplied by the user and is not an authenticated identity. This API is intended for local evaluation; authentication and authorization must be added before exposing it as a public help desk.
-
-AI assistance was used for implementation and review. The candidate must study, run, and verify the code and be able to explain or modify it during the technical review.
-
-## Images and Vercel demo
-
-Up to two optional images per request: the problem image at creation and a separate solution image when resolving it. Saved evidence cannot be replaced or deleted. Each original may be up to 500 MB and is optimized before upload to private Storage. Initial attachment generates one Creation event; a solution attachment generates a dedicated evidence event with its actor and timestamp.
-
-`npm run dev` waits for the API health check before starting Next.js. The frontend also shows a connection state while the API is starting.
-
-Publish two Vercel projects from this monorepo: `backend` (NestJS) and `frontend` (Next.js). Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` only on the backend, and `API_URL` on the frontend. The following detailed guides are in Spanish:
-
-- [Vercel deployment](docs/VERCEL.md)
-- [Image configuration and behavior](docs/IMAGENES.md)
-- [Original assessment PDF](docs/PRUEBA_TECNICA.pdf)
+The current version has no authentication or roles; actors are entered manually. Use fictitious data on the public instance. Authentication and authorization are required before handling real information.
